@@ -187,8 +187,6 @@ const Eigen::Vector6d& Frame::getSpatialAcceleration() const
                                  getParentFrame()->getSpatialAcceleration())
         + getPrimaryRelativeAcceleration()
         + getPartialAcceleration();
-//        + getRelativeSpatialAcceleration()
-//        + math::ad(getSpatialVelocity(), getRelativeSpatialVelocity());
 
     mNeedAccelerationUpdate = false;
   }

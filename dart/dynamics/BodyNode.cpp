@@ -1037,6 +1037,9 @@ void BodyNode::drawMarkers(renderer::RenderInterface* _ri,
 //==============================================================================
 void BodyNode::notifyTransformUpdate()
 {
+  if(mSkeleton && !mSkeleton->mIsKinematicAutoUpdateOn)
+    return;
+
   notifyVelocityUpdate(); // Global Velocity depends on the Global Transform
 
   if(mNeedTransformUpdate)
@@ -1052,10 +1055,6 @@ void BodyNode::notifyTransformUpdate()
     mSkeleton->mIsExternalForcesDirty = true;
   }
 
-//  EntityPtrSet::iterator it=mChildEntities.begin(), end=mChildEntities.end();
-//  for( ; it != end; ++it)
-//    (*it)->notifyTransformUpdate();
-
   // Child BodyNodes and other generic Entities are notified separately to allow
   // some optimizations
   for(size_t i=0; i<mChildBodyNodes.size(); ++i)
@@ -1070,6 +1069,9 @@ void BodyNode::notifyTransformUpdate()
 //==============================================================================
 void BodyNode::notifyVelocityUpdate()
 {
+  if(mSkeleton && !mSkeleton->mIsKinematicAutoUpdateOn)
+    return;
+
   notifyAccelerationUpdate(); // Global Acceleration depends on Global Velocity
 
   if(mNeedVelocityUpdate)
@@ -1099,6 +1101,9 @@ void BodyNode::notifyVelocityUpdate()
 //==============================================================================
 void BodyNode::notifyAccelerationUpdate()
 {
+  if(mSkeleton && mSkeleton->mIsKinematicAutoUpdateOn)
+    return;
+
   // If we already know we need to update, just quit
   if(mNeedAccelerationUpdate)
     return;
@@ -1117,15 +1122,32 @@ void BodyNode::notifyAccelerationUpdate()
 //==============================================================================
 void BodyNode::updateTransform()
 {
-  // Calling getWorldTransform will update the transform if an update is needed
-  assert(math::verifyTransform(getWorldTransform()));
+  if(mParentBodyNode)
+    mWorldTransform = mParentBodyNode->mWorldTransform*getRelativeTransform();
+  else
+    mWorldTransform = mParentFrame->getWorldTransform()*getRelativeTransform();
+
+  mNeedTransformUpdate = false;
+  assert(math::verifyTransform(mWorldTransform));
 }
 
 //==============================================================================
 void BodyNode::updateVelocity()
 {
-  // Calling getSpatialVelocity will update the velocity if an update is needed
-  assert(!math::isNan(getSpatialVelocity()));
+  if(mParentBodyNode)
+  {
+    mVelocity = math::AdInvT(getRelativeTransform(), mParentBodyNode->mVelocity)
+              + getRelativeSpatialVelocity();
+  }
+  else
+  {
+    mVelocity = math::AdInvT(getRelativeTransform(),
+                             getParentFrame()->getSpatialVelocity())
+              + getRelativeSpatialVelocity();
+  }
+
+  mNeedVelocityUpdate = false;
+  assert(!math::isNan(mVelocity));
 }
 
 //==============================================================================
@@ -1146,9 +1168,22 @@ void BodyNode::updateAcceleration()
 //==============================================================================
 void BodyNode::updateAccelerationID()
 {
-  // Note: auto-updating has replaced this function
-  getSpatialAcceleration();
-  // Verification
+  if(mParentBodyNode)
+  {
+    mAcceleration = math::AdInvT(getRelativeTransform(),
+                                 mParentBodyNode->mAcceleration)
+        + getPrimaryRelativeAcceleration()
+        + getPartialAcceleration();
+  }
+  else
+  {
+    mAcceleration = math::AdInvT(getRelativeTransform(),
+                                 getParentFrame()->getSpatialAcceleration())
+        + getPrimaryRelativeAcceleration()
+        + getPartialAcceleration();
+  }
+
+  mNeedAccelerationUpdate = false;
   assert(!math::isNan(mAcceleration));
 }
 

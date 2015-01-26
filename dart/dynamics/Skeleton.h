@@ -94,6 +94,21 @@ public:
   /// Get name.
   const std::string& getName() const;
 
+  /// Turn on auto-updating for forward kinematics by passing in true
+  ///
+  /// If auto-updating is on, there is never a need to call the
+  /// computeForwardKinematics() function, and can improve performance when
+  /// computing only partial kinematic chains in a Skeleton. If your use of the
+  /// Forward Kinematics involves always solving the full FK of the Skeleton,
+  /// then turning off auto-updating can slightly improve performance by
+  /// eliminating its bookkeeping overhead. However, this also reduces code
+  /// safety, because it becomes your responsibility to call
+  /// computeForwardKinematics() whenever a kinematics update is needed.
+  void setKinematicAutoUpdate(bool _on);
+
+  /// Returns true iff auto-updating is turned on for forward kinematics
+  bool getKinematicAutoUpdate() const;
+
   /// Enable self collision check
   void enableSelfCollision(bool _enableAdjecentBodies = false);
 
@@ -712,6 +727,9 @@ protected:
 protected:
   /// Name
   std::string mName;
+
+  /// True iff auto-updating is active for this Skeleton
+  bool mIsKinematicAutoUpdateOn;
 
   /// Number of degrees of freedom (aka generalized coordinates)
   size_t mNumDofs;

@@ -58,6 +58,7 @@ namespace dynamics {
 //==============================================================================
 Skeleton::Skeleton(const std::string& _name)
   : mName(_name),
+    mIsKinematicAutoUpdateOn(false),
     mNumDofs(0),
     mEnabledSelfCollisionCheck(false),
     mEnabledAdjacentBodyCheck(false),
@@ -104,6 +105,37 @@ void Skeleton::setName(const std::string& _name)
 const std::string& Skeleton::getName() const
 {
   return mName;
+}
+
+//==============================================================================
+void Skeleton::setKinematicAutoUpdate(bool _on)
+{
+  mIsKinematicAutoUpdateOn = _on;
+
+  if(_on)
+  {
+    // If the Skeleton only has a single root BodyNode, then we could just call
+    // notifyTransformUpdate() on that one BodyNode. But currently Skeletons are
+    // allowed to have multiple root BodyNodes, so to be safe we should call
+    // this on each one.
+    for(size_t i=0; i<mBodyNodes.size(); ++i)
+      mBodyNodes[i]->notifyTransformUpdate();
+  }
+  else
+  {
+    for(size_t i=0; i<mBodyNodes.size(); ++i)
+    {
+      mBodyNodes[i]->mNeedTransformUpdate = false;
+      mBodyNodes[i]->mNeedVelocityUpdate = false;
+      mBodyNodes[i]->mNeedAccelerationUpdate = false;
+    }
+  }
+}
+
+//==============================================================================
+bool Skeleton::getKinematicAutoUpdate() const
+{
+  return mIsKinematicAutoUpdateOn;
 }
 
 //==============================================================================
@@ -1082,7 +1114,13 @@ void Skeleton::computeForwardKinematics(bool _updateTransforms,
     for (std::vector<BodyNode*>::iterator it = mBodyNodes.begin();
          it != mBodyNodes.end(); ++it)
     {
-      (*it)->updateTransform();
+//      (*it)->updateTransform();
+      (*it)->mNeedTransformUpdate = true;
+
+      mIsCoriolisForcesDirty = true;
+      mIsGravityForcesDirty = true;
+      mIsCoriolisAndGravityForcesDirty = true;
+      mIsExternalForcesDirty = true;
     }
   }
 
@@ -1091,8 +1129,16 @@ void Skeleton::computeForwardKinematics(bool _updateTransforms,
     for (std::vector<BodyNode*>::iterator it = mBodyNodes.begin();
          it != mBodyNodes.end(); ++it)
     {
-      (*it)->updateVelocity();
-      (*it)->updatePartialAcceleration();
+      (*it)->mNeedVelocityUpdate = true;
+      (*it)->mIsBodyJacobianDerivDirty = true;
+      (*it)->mIsPartialAccelerationDirty = true;
+
+      mIsCoriolisForcesDirty = true;
+      mIsCoriolisAndGravityForcesDirty = true;
+
+//      (*it)->updateVelocity();
+//      (*it)->updatePartialAcceleration();
+//      (*it)->mIsPartialAccelerationDirty = true;
     }
   }
 
@@ -1101,27 +1147,30 @@ void Skeleton::computeForwardKinematics(bool _updateTransforms,
     for (std::vector<BodyNode*>::iterator it = mBodyNodes.begin();
          it != mBodyNodes.end(); ++it)
     {
-      (*it)->updateAccelerationID();
+      (*it)->mNeedAccelerationUpdate = true;
+
+//      (*it)->updateAccelerationID();
     }
   }
 
-  mIsArticulatedInertiaDirty = true;
-  mIsMassMatrixDirty = true;
-  mIsAugMassMatrixDirty = true;
-  mIsInvMassMatrixDirty = true;
-  mIsInvAugMassMatrixDirty = true;
-  mIsCoriolisForcesDirty = true;
-  mIsGravityForcesDirty = true;
-  mIsCoriolisAndGravityForcesDirty = true;
-  mIsExternalForcesDirty = true;
-//  mIsDampingForceVectorDirty = true;
+  // TODO(MXG): Test if these need to be in this particular spot... I don't think they do
+//  mIsArticulatedInertiaDirty = true;
+//  mIsMassMatrixDirty = true;
+//  mIsAugMassMatrixDirty = true;
+//  mIsInvMassMatrixDirty = true;
+//  mIsInvAugMassMatrixDirty = true;
+//  mIsCoriolisForcesDirty = true;
+//  mIsGravityForcesDirty = true;
+//  mIsCoriolisAndGravityForcesDirty = true;
+//  mIsExternalForcesDirty = true;
 
-  for (std::vector<BodyNode*>::iterator it = mBodyNodes.begin();
-       it != mBodyNodes.end(); ++it)
-  {
-    (*it)->mIsBodyJacobianDirty = true;
-    (*it)->mIsBodyJacobianDerivDirty = true;
-  }
+  // TODO(MXG): Test if these need to be here... I don't think they do
+//  for (std::vector<BodyNode*>::iterator it = mBodyNodes.begin();
+//       it != mBodyNodes.end(); ++it)
+//  {
+//    (*it)->mIsBodyJacobianDirty = true;
+//    (*it)->mIsBodyJacobianDerivDirty = true;
+//  }
 }
 
 //==============================================================================
