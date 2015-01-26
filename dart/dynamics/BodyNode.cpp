@@ -1101,7 +1101,7 @@ void BodyNode::notifyVelocityUpdate()
 //==============================================================================
 void BodyNode::notifyAccelerationUpdate()
 {
-  if(mSkeleton && mSkeleton->mIsKinematicAutoUpdateOn)
+  if(mSkeleton && !mSkeleton->mIsKinematicAutoUpdateOn)
     return;
 
   // If we already know we need to update, just quit
